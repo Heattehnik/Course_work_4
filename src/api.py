@@ -5,22 +5,28 @@ import requests as req
 class APIConnector(ABC):
 
     @abstractmethod
-    def connect(self):
+    def get_vacancies(self):
         pass
 
 
 class HeadHunterAPI(APIConnector):
 
     def __init__(self):
-        pass
+        self.response = None
 
-    def connect(self):
-        response = req.get()
-        pass
+    def get_vacancies(self) -> dict:
+        self.response = req.get('https://api.hh.ru/vacancies')
+        return self.response.json()
 
 
 class SuperJobAPI(APIConnector):
 
-    def connect(self):
-        response = req.get()
-        pass
+    def get_vacancies(self) -> dict:
+        self.response = req.get('https://api.hh.ru/vacancies')
+        return self.response.json()
+
+
+if __name__ == '__main__':
+    connect = HeadHunterAPI()
+    response = connect.get_vacancies()
+    print(response)
