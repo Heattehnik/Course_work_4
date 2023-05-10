@@ -23,15 +23,23 @@ class HeadHunterAPI(APIConnector):
     vacancies = []
 
     def __init__(self):
+        self.url = "https://api.hh.ru/vacancies"
         self.response = None
 
-    def get_vacancies(self, keywords: str) -> None:
-        self.response = req.get(f'https://api.hh.ru/vacancies?area=113&text={keywords}&per_page=100')
+    def get_vacancies(self, keyword: str) -> None:
+        params = {
+            'text': keyword,
+            'area': 113,
+            'per_page': 100,
+            'only_with_salary': True,
+            'search_field': 'name'
+        }
+        self.response = req.get(self.url, params)
         self.response.content.decode()
         self.vacancies.append(self.response.json())
         if self.response.json().get('pages') > 1:
             for page in range(1, self.response.json().get('pages')):
-                response = req.get(f'https://api.hh.ru/vacancies?area=113&text={keywords}&per_page=100&page={page}')
+                response = req.get(f'https://api.hh.ru/vacancies?area=113&text={keyword}&per_page=100&page={page}')
                 response.content.decode()
                 self.vacancies.append(response.json())
 
@@ -42,10 +50,10 @@ class HeadHunterAPI(APIConnector):
 
 
 class SuperJobAPI(APIConnector):
-    vacancies = []
     token = os.getenv('SJ_TOKEN')
     client_id = os.getenv('SJ_CLIENT_ID')
     headers = {'X-Api-App-Id': token}
+    vacancies = []
 
     def __init__(self):
         self.response = None
