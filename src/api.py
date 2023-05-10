@@ -21,6 +21,7 @@ class APIConnector(ABC):
 
 class HeadHunterAPI(APIConnector):
     vacancies = []
+
     def __init__(self):
         self.response = None
 
@@ -36,7 +37,7 @@ class HeadHunterAPI(APIConnector):
 
     def make_file(self) -> None:
         for page in self.vacancies:
-            with open('hh_vacancies.json', 'a+', encoding='utf-8') as file:
+            with open('./data/hh_vacancies.json', 'a+', encoding='utf-8') as file:
                 file.write(json.dumps(page, indent=2, ensure_ascii=False))
 
 
@@ -56,8 +57,8 @@ class SuperJobAPI(APIConnector):
         while temp.get('more'):
             if page == 119:
                 time.sleep(60)
-            self.response = req.get(f'https://api.superjob.ru/2.0/vacancies/?keywords={keywords}&not_archive=1&count=50&page={page}',
-                                    headers=self.headers)
+            self.response = req.get(f'https://api.superjob.ru/2.0/vacancies/?keywords={keywords}'
+                                    f'&not_archive=1&count=50&page={page}', headers=self.headers)
             self.vacancies.append(self.response.json())
             temp['more'] = self.response.json().get('more')
             page += 1
@@ -65,22 +66,5 @@ class SuperJobAPI(APIConnector):
 
     def make_file(self) -> None:
         for page in self.vacancies:
-            with open('sj_vacancies.json', 'a+', encoding='utf-8') as file:
+            with open('./data/sj_vacancies.json', 'a+', encoding='utf-8') as file:
                 file.write(json.dumps(page, indent=2, ensure_ascii=False))
-
-
-if __name__ == '__main__':
-    headhunter = HeadHunterAPI()
-    headhunter.get_vacancies('Python')
-    headhunter.make_file()
-    superjob = SuperJobAPI()
-    superjob.get_vacancies('Python')
-    superjob.make_file()
-    # print(len(response))
-    # with open('vacancies.json', 'w', encoding='utf-8') as file:
-    #     i = 0
-    #     for vacancie in response:
-    #         for item in vacancie['objects']:
-    #             file.write(f"{item.get('id')}\n{item.get('profession')}\n{i}\n")
-    #             i += 1
-    #     # f.write(json.dumps(data, sort_keys=True, ensure_ascii=False))
