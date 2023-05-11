@@ -74,7 +74,8 @@ class SJVacancy(Vacancy):
     def insert_vacancy(self):
         pass
 
-    def search_vacancy(self):
+    @classmethod
+    def search_vacancy(cls, query: str, count: int = 5) -> list[tuple]:
         pass
 
     def delete_from_db(self):
