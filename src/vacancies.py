@@ -17,7 +17,7 @@ class Vacancy(ABC):
         pass
 
     @abstractmethod
-    def search_vacancy(self, query):
+    def search_vacancy(self, query, count=5):
         pass
 
     @abstractmethod
@@ -56,16 +56,16 @@ class HHVacancy(Vacancy):
                 cls.connect.commit()
 
     @classmethod
-    def search_vacancy(cls, query):
+    def search_vacancy(cls, query: str, count: int = 5) -> list[tuple]:
         cls.cursor.execute(f"SELECT vacancy_id, title, salary_from FROM vacancies WHERE title LIKE '%{query}%' "
                            f"ORDER BY salary_from DESC")
-        result = cls.cursor.fetchmany(3)
+        result = cls.cursor.fetchmany(count)
         return result
 
     def delete_from_db(self):
         pass
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'{self.title}\n{self.salary_from}\n{self.salary_to}\n{self.currency}'
 
 
