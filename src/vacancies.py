@@ -7,8 +7,7 @@ class Vacancy(ABC):
     Абстрактный класс для работы с вакансиями и взаимодействия с базой данных
 
     """
-    connect = sqlite3.connect('./data/main.db', check_same_thread=False)
-    cursor = connect.cursor()
+
     all_vacancies = []
     salary_from = 0
     salary_to = 0
@@ -19,15 +18,16 @@ class Vacancy(ABC):
         pass
 
     @abstractmethod
-    def search_vacancy(self, query: str, count: str = 5):
-        pass
-
-    @abstractmethod
     def delete_from_db(self) -> None:
         pass
 
 
-class HHVacancy(Vacancy):
+class DBMixin:
+    connect = sqlite3.connect('./data/main.db', check_same_thread=False)
+    cursor = connect.cursor()
+
+
+class HHVacancy(Vacancy, DBMixin):
     """
     Класс для обработки вакансий полученных с hh.ru
     """
@@ -47,34 +47,36 @@ class HHVacancy(Vacancy):
             self.currency = vacancy['salary']['currency']
         self.url = vacancy['alternate_url']
         self.all_vacancies.append(self)
+
     @classmethod
     def insert_data(cls) -> None:
         """
         Метод класса для записи полученных вакансий в базу данных
         """
         for vacancy in cls.all_vacancies:
-            cls.cursor.execute(f"SELECT vacancy_id FROM vacancies WHERE vacancy_id = '{vacancy.vacancy_id}'")
+            cls.cursor.execute(f"SELECT * FROM vacancies WHERE title = '{vacancy.title}' AND "
+                               f"requirement = '{vacancy.requirement}'")
             result = cls.cursor.fetchone()
             if not result:
                 cls.cursor.execute('INSERT INTO vacancies (platform, vacancy_id, title, requirement, responsibility,'
-                               'employer, salary_from, salary_to, currency, url) VALUES (?,?,?,?,?,?,?,?,?,?)',
-                               (vacancy.platform, vacancy.vacancy_id, vacancy.title, vacancy.requirement,
-                                vacancy.responsibility, vacancy.employer, vacancy.salary_from, vacancy.salary_to,
-                                vacancy.currency, vacancy.url))
+                                   'employer, salary_from, salary_to, currency, url) VALUES (?,?,?,?,?,?,?,?,?,?)',
+                                   (vacancy.platform, vacancy.vacancy_id, vacancy.title, vacancy.requirement,
+                                    vacancy.responsibility, vacancy.employer, vacancy.salary_from, vacancy.salary_to,
+                                    vacancy.currency, vacancy.url))
                 cls.connect.commit()
 
-    @classmethod
-    def search_vacancy(cls, query: str, count: int = 5) -> list[tuple]:
-        """
-        Метод для получения вакансий из базы данных по запросу пользователя.
-        :param query: Строка запроса
-        :param count: Количество возвращаемых вакансий
-        :return: Список кортежей с вакансиями отсортированных по уменьшению зарплаты.
-        """
-        cls.cursor.execute(f"SELECT vacancy_id, title, salary_from FROM vacancies WHERE title LIKE '%{query}%' "
-                           f"ORDER BY salary_from DESC")
-        result = cls.cursor.fetchmany(count)
-        return result
+    # @classmethod
+    # def search_vacancy(cls, query: str, count: int = 5) -> list[tuple]:
+    #     """
+    #     Метод для получения вакансий из базы данных по запросу пользователя.
+    #     :param query: Строка запроса
+    #     :param count: Количество возвращаемых вакансий
+    #     :return: Список кортежей с вакансиями отсортированных по уменьшению зарплаты.
+    #     """
+    #     cls.cursor.execute(f"SELECT vacancy_id, title, salary_from FROM vacancies WHERE title LIKE '%{query}%' "
+    #                        f"ORDER BY salary_from DESC")
+    #     result = cls.cursor.fetchmany(count)
+    #     return result
 
     def delete_from_db(self) -> None:
         """
@@ -87,7 +89,7 @@ class HHVacancy(Vacancy):
         return f'{self.title}\n{self.salary_from}\n{self.salary_to}\n{self.currency}'
 
 
-class SJVacancy(Vacancy):
+class SJVacancy(Vacancy, DBMixin):
     """
     Класс для обработки вакансий полученных с superjob.ru
     """
@@ -112,7 +114,8 @@ class SJVacancy(Vacancy):
         Метод класса для записи полученных вакансий в базу данных
         """
         for vacancy in cls.all_vacancies:
-            cls.cursor.execute(f"SELECT vacancy_id FROM vacancies WHERE vacancy_id = '{vacancy.vacancy_id}'")
+            cls.cursor.execute(f"SELECT * FROM vacancies WHERE title = '{vacancy.title}' AND "
+                               f"requirement = '{vacancy.requirement}'")
             result = cls.cursor.fetchone()
             if not result:
                 cls.cursor.execute('INSERT INTO vacancies (platform, vacancy_id, title, requirement,'
@@ -122,18 +125,46 @@ class SJVacancy(Vacancy):
                                     vacancy.currency, vacancy.url))
                 cls.connect.commit()
 
-    @classmethod
-    def search_vacancy(cls, query: str, count: int = 5) -> list[tuple]:
-        """
-        Метод для получения вакансий из базы данных по запросу пользователя.
-        :param query: Строка запроса
-        :param count: Количество возвращаемых вакансий
-        :return: Список кортежей с вакансиями отсортированных по уменьшению зарплаты.
-        """
-        cls.cursor.execute(f"SELECT vacancy_id, title, salary_from FROM vacancies WHERE title LIKE '%{query}%' "
-                           f"ORDER BY salary_from DESC")
-        result = cls.cursor.fetchmany(count)
-        return result
+    # @classmethod
+    # def search_vacancy(cls, query: str, count: int = 5) -> list[tuple]:
+    #     """
+    #     Метод для получения вакансий из базы данных по запросу пользователя.
+    #     :param query: Строка запроса
+    #     :param count: Количество возвращаемых вакансий
+    #     :return: Список кортежей с вакансиями отсортированных по уменьшению зарплаты.
+    #     """
+    #     cls.cursor.execute(f"SELECT vacancy_id, title, salary_from FROM vacancies WHERE title LIKE '%{query}%' "
+    #                        f"ORDER BY salary_from DESC")
+    #     result = cls.cursor.fetchmany(count)
+    #     return result
 
     def delete_from_db(self):
         pass
+
+
+class GetTopVacancies(DBMixin):
+    def __init__(self, query, count):
+        self.query = query
+        self.count = count
+
+    def search_vacancy(self) -> list[tuple]:
+        """
+        Метод для получения вакансий из базы данных по запросу пользователя.
+        :return: Список кортежей с вакансиями отсортированных по уменьшению зарплаты.
+        """
+        self.cursor.execute(f"SELECT * FROM vacancies WHERE title LIKE '%{self.query}%' "
+                            f"ORDER BY salary_from DESC")
+        result = self.cursor.fetchmany(self.count)
+        return result
+
+
+class VacancyCount(DBMixin):
+    def __init__(self, query):
+        self.query = query
+
+    def get_vacancy_count(self) -> int:
+        self.cursor.execute(f"SELECT * FROM vacancies WHERE title LIKE '%{self.query}%' OR requirement LIKE "
+                            f"'%{self.query}%'")
+        result = self.cursor.fetchall()
+        return len(result)
+
