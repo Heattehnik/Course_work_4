@@ -10,24 +10,36 @@ load_dotenv()
 
 
 class APIConnector(ABC):
+    """
+    Абстрактный класс для взаимодействия с API
+    """
 
     @abstractmethod
     def get_vacancies(self, keywords):
-        pass
-
-    @abstractmethod
-    def make_file(self):
+        """
+        Абстрактный метод для получения списка вакансий
+        :param keywords:
+        :return:
+        """
         pass
 
 
 class HeadHunterAPI(APIConnector):
+    """
+    Класс для взаимодействия с API HeadHunter
+    """
     vacancies = []
+    url = "https://api.hh.ru/vacancies"
+    response = None
 
-    def __init__(self):
-        self.url = "https://api.hh.ru/vacancies"
+    def __init__(self) -> None:
         self.response = None
 
     def get_vacancies(self, keyword: str) -> None:
+        """
+        Метод для получения списка вакансий
+        :param keyword: Ключевое слово для поиска вакансий
+        """
         params = {
             'text': keyword,
             'area': 113,
@@ -39,17 +51,11 @@ class HeadHunterAPI(APIConnector):
         self.response = req.get(self.url, params)
         self.response.content.decode()
         self.vacancies.extend(self.response.json().get('items'))
-        pages = self.response.json().get('pages')
         if self.response.json().get('pages') > 1:
             for page in range(1, self.response.json().get('pages')):
                 response = req.get(f'https://api.hh.ru/vacancies?area=113&text={keyword}&per_page=100&page={page}')
                 response.content.decode()
                 self.vacancies.extend(response.json().get('items'))
-
-    def make_file(self) -> None:
-        for page in self.vacancies:
-            with open('./data/hh_vacancies.json', 'a+', encoding='utf-8') as file:
-                file.write(json.dumps(page, indent=2, ensure_ascii=False))
 
     def add_vacancies(self):
         for vacancy in self.vacancies:
@@ -58,28 +64,33 @@ class HeadHunterAPI(APIConnector):
 
 class SuperJobAPI(APIConnector):
     token = os.getenv('SJ_TOKEN')
-    client_id = os.getenv('SJ_CLIENT_ID')
     headers = {'X-Api-App-Id': token}
     vacancies = []
+    url = "https://api.superjob.ru/2.0/vacancies/"
+    response = None
 
     def __init__(self):
         self.response = None
 
-    def get_vacancies(self, keywords) -> list:
-        keywords = keywords
-        temp = {'more': True}
-        page = 1
-        while temp.get('more'):
-            if page == 119:
-                time.sleep(60)
-            self.response = req.get(f'https://api.superjob.ru/2.0/vacancies/?keywords={keywords}'
-                                    f'&not_archive=1&count=50&page={page}', headers=self.headers)
-            self.vacancies.append(self.response.json())
-            temp['more'] = self.response.json().get('more')
-            page += 1
-        return self.vacancies
+    def get_vacancies(self, keywords: str) -> None:
+        params = {
+            'keywords': keywords,
+            'not_archive': 1,
+            'count': 50,
+            'page': 0
+        }
+        temp_dict = {'more': True}
 
-    def make_file(self) -> None:
-        for page in self.vacancies:
-            with open('./data/sj_vacancies.json', 'a+', encoding='utf-8') as file:
-                file.write(json.dumps(page, indent=2, ensure_ascii=False))
+        while temp_dict.get('more'):
+            if params['page'] == 119:
+                time.sleep(60)
+            self.response = req.get(self.url, params, headers=self.headers)
+            if self.response.status_code == 200:
+                self.vacancies.extend(self.response.json()['objects'])
+                temp_dict['more'] = self.response.json().get('more')
+                params['page'] += 1
+
+    def add_vacancies(self):
+        for vacancy in self.vacancies:
+            SJVacancy(vacancy)
+
